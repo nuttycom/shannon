@@ -9,13 +9,15 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 - [ ] Write the bats suite for `check-memory-synthesis.sh`. See `docs/testing.md` for the per-case table.
 - [ ] Add `tests/fixtures/` (stdin payloads, fixture memory corpora at green / yellow / red sizes, sample transcript).
 - [ ] `.github/workflows/test.yml` running `bats tests/` via `bats-core/bats-action`.
-- [ ] `session-start.sh` and `save-session.sh` test cases once those scripts are in `hooks/`.
+- [ ] `session-start.sh` and `save-session.sh` test cases.
+- [ ] `check-tmp-path.sh` test cases.
 
 ## Hook scripts
 
 - [x] Move `check-memory-synthesis.sh`, `session-start.sh`, and `save-session.sh` into `hooks/`. The three scripts now live in `shannon/hooks/` and the maintainer's `~/.claude/<name>.sh` paths are symlinks pointing at them. Content is verbatim from the maintainer's setup (no separate sanitization pass was needed — the scripts were already generic).
 - [x] Decide the `~/.claude/jsonl-to-md.py` dependency for `save-session.sh`. Decision: ship the helper in Shannon — it now lives at `hooks/jsonl-to-md.py`, and the maintainer's `~/.claude/jsonl-to-md.py` is a symlink pointing at it. `save-session.sh`'s reference path is unchanged; on the end-user install, the installer will place the helper at `~/.claude/jsonl-to-md.py` alongside the scripts.
-- [x] Refine `check-memory-synthesis.sh` to handle the two path classes that the default reminder does not fit. **`MEMORY.md`** → no output (the index has nothing to synthesize or sanitize). **`user_*.md`** → path-aware reminder: the synthesis half still applies ("is this addition at home in this user profile, or does it belong in a feedback memory?") but the sanitization half is dropped, since named attribution is the point of user profile memories. **Both exclusions live in the script** rather than in the hook entry's `if` field: the original design specified `MEMORY.md` exclusion via `if`, but Claude Code's permission-rule syntax supports prefix matches and not negation, so expressing "any memory path EXCEPT `MEMORY.md`" as a positive prefix requires enumerating the file-name prefixes that DO match, which is brittle. The script's case statement handles all three path classes directly. Pipe-tested for `MEMORY.md`, `user_*.md`, regular memory bodies, and non-memory paths.
+- [x] Refine `check-memory-synthesis.sh` to branch on path class in-script. The script now handles the cases where the default synthesis-plus-sanitization reminder does not fit; see the script's header for the current set. The match-in-script vs match-in-`if`-field design rationale is captured in `CLAUDE.md`'s Conventions section.
+- [x] Add `check-tmp-path.sh` Bash `PreToolUse` hook. Emits a reminder when the agent runs a Bash command referencing `/tmp/` (with the exception of `/tmp/claude-*` paths), nudging scratch files under `<project>/tmp/` instead. Cross-referenced with the global `feedback_use_repo_tmp.md` memory body so edits to either side stay in sync.
 
 ## Installer
 
