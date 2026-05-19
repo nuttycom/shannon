@@ -50,14 +50,12 @@ doesn't apply— but they need different fixes.
   rules here won't compact away. This helps to address *recall misses*.
 
 - **Hooks** — mechanical gates that fire at action time, not at recall
-  time:
-    - `check-memory-synthesis` injects a reminder before any new memory
-      write to check for synthesis with existing memories;
-    - `session-start` reminds the agent to reload the full memory corpus
-      when affordable;
-    - `save-session` snapshots the transcript before compaction.
-
-  These hooks help to address *trigger misses*.
+  time. The shipped set covers synthesis-check before memory writes,
+  full-corpus re-read at session start and post-compaction, transcript
+  snapshots before compaction, and path-class reminders that nudge
+  scratch files away from `/tmp/`. See `hooks/` for the current set and
+  each script's header for its specific behaviour. Hooks help to address
+  *trigger misses*.
 
 - **Seed memories** — a small starter corpus of universal meta-rules:
   synthesis-check-before-memory-write, no-push-without-explicit-request,
@@ -69,11 +67,13 @@ doesn't apply— but they need different fixes.
   failure modes of Claude Code.
   TBD: describe how the opt-in works mechanically.
 
-- **Idempotent installer** — `./install.sh` merges into
-  `~/.claude/settings.json` (without overwriting existing hooks), copies
-  hook scripts to `~/.claude/`, copies the seed memories into
-  `~/.claude/memory/` (skipping any that already exist), and installs the
-  `CLAUDE.md` template.
+- **Idempotent installer** — `./install.sh` is non-destructive:
+  existing hook and utility scripts, seed memories, and `CLAUDE.md` at
+  the destination are left in place (skipped, with a report). `settings.json`
+  is deep-merged: Shannon-managed entries (tagged with `_shannon: true`
+  in the snippet) are updated in place, new entries are appended, and
+  any user-customized entries at a matching event/matcher are left
+  untouched with a warning.
 
 ## Memories vs skills
 
@@ -148,8 +148,10 @@ cd shannon
 ./install.sh
 ```
 
-After install, restart your Claude Code session. The new hooks fire from
-the next session onward.
+The installer prints platform-specific activation instructions when it
+finishes. On Linux the new hooks take effect on the next prompt in any
+running session; on macOS and Windows you may need to restart Claude
+Code or open `/hooks` and dismiss it.
 
 ## What Shannon is not
 
@@ -164,7 +166,7 @@ the next session onward.
 
 Add your own memories to `~/.claude/memory/` as you normally would.
 Shannon's seed memories sit alongside, not above; you can override any of
-them by writing your own with the same filename. See `docs/extending.md`.
+them by writing your own with the same filename.
 
 ## Philosophy
 

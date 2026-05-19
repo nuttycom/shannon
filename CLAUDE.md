@@ -53,10 +53,8 @@ shannon/
 ├── claude-md/
 │   └── CLAUDE.example.md           template installed to ~/.claude/CLAUDE.md
 ├── hooks/
-│   ├── settings.json.snippet       JSON to merge into ~/.claude/settings.json
-│   ├── check-memory-synthesis.sh   trigger gate before memory writes
-│   ├── session-start.sh            recall reminder + corpus-size report
-│   └── save-session.sh             PreCompact transcript snapshot
+│   ├── settings.json.snippet       JSON merged into ~/.claude/settings.json
+│   └── *.sh, *.py                  hook and utility scripts; see each script's header
 ├── memory-seed/                    universal meta-rules, sanitized
 └── docs/                           philosophy + extension guide
 ```
@@ -83,9 +81,9 @@ shannon/
   prefixes that DO match. When excluding a single path or filename,
   script-level matching is usually the more practical choice even when
   no prompt is needed. Real instance: `check-memory-synthesis.sh`
-  handles both `MEMORY.md` exclusion (no output) and `user_*.md`
-  path-aware reminders (synthesis applies, sanitization does not)
-  in-script for this reason.
+  branches on path class in-script (`MEMORY.md`, `user_*.md`,
+  project-scoped memory bodies, and the default) for this reason; see
+  the script's header for the current set of cases.
 - **Tests are expected for shipped scripts.** Any new script added to
   `hooks/` — or any substantive modification to an existing one — needs a
   corresponding test under `tests/`. See `docs/testing.md` for the testing
