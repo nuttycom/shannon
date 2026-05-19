@@ -2,18 +2,8 @@
 # install.sh — install Shannon's hooks, seed memories, and `CLAUDE.md`
 # template into the user's `~/.claude/` directory.
 #
-# See the Usage string below for details.
-#
-# The hook configuration in `hooks/settings.json.snippet` is NOT
-# auto-merged into an existing `~/.claude/settings.json`. If the
-# settings file does not yet exist, the installer writes it directly.
-# If it exists, the installer prints the snippet and asks the user to
-# merge it by hand. A future enhancement may offer `jq`-based deep-
-# merge for the existing-settings case.
-#
-# Activation: the hook entries in `settings.json` take effect at the
-# next `claude` start, or after running `/hooks` (see the post-install
-# message at the end of this script for details).
+# See the Usage string below for details, and the post-install
+# message at the end of this script for activation specifics.
 
 set -euo pipefail
 
