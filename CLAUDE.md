@@ -51,7 +51,7 @@ shannon/
 ├── CLAUDE.md                       this file (contributor guidance)
 ├── install.sh                      idempotent, non-destructive installer
 ├── claude-md/
-│   └── CLAUDE.md.example           template installed to ~/.claude/CLAUDE.md
+│   └── CLAUDE.example.md           template installed to ~/.claude/CLAUDE.md
 ├── hooks/
 │   ├── settings.json.snippet       JSON to merge into ~/.claude/settings.json
 │   ├── check-memory-synthesis.sh   trigger gate before memory writes
@@ -97,11 +97,8 @@ shannon/
   (`~/.claude/settings.json`, `~/.claude/memory/*`, and
   `~/.claude/CLAUDE.md`) are merged into or skipped, never overwritten
   without explicit opt-in (`--force` or equivalent).
-- **`CLAUDE.md.example` must stay minimal.** Only the irreducible
-  imperatives — rules whose violation has high enough cost to warrant
-  always-loaded status. Adding rules to the template is a high-bar change;
-  consider whether the rule could live in a seed memory (recall-loaded when
-  affordable) instead.
+- **`CLAUDE.example.md` must stay minimal.** It should have the imperative
+  rules whose violation has high enough cost to warrant always-loaded status.
 - **Seed memory filenames are stable surface.** Downstream users may rely on
   the filenames; renaming a seed memory is a breaking change. Pick names
   carefully on first commit, and treat renames like API renames.
