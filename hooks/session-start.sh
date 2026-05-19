@@ -22,9 +22,15 @@ Bootstrap action (in either mode): Read ~/.claude/memory/feedback_memory_size_bu
 Why the full re-read matters (when affordable): compaction reliably drops standing preferences recorded in memory even when MEMORY.md itself is still in context, so the summary-only default causes silent regression of those preferences.
 EOF
 
-count=$(ls ~/.claude/memory/*.md 2>/dev/null | wc -l)
-bytes=$(wc -c ~/.claude/memory/*.md 2>/dev/null | tail -1 | awk '{print $1}')
-tokens=$(( ${bytes:-0} / 4 ))
+shopt -s nullglob
+files=( ~/.claude/memory/*.md )
+count=${#files[@]}
+if [ "$count" -gt 0 ]; then
+    bytes=$(wc -c "${files[@]}" | tail -1 | awk '{print $1}')
+else
+    bytes=0
+fi
+tokens=$(( bytes / 4 ))
 
 echo "Memory corpus: ${count} files, ~${tokens} tokens (est. bytes/4). On a 1M-context model: Green <50k, Yellow 50k-100k, Red >100k."
 
