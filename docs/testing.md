@@ -1,14 +1,36 @@
-# Testing the hook scripts
+# Testing Shannon
 
-Shannon ships three hook scripts in `hooks/`:
+To run the test suite, first [ensure that `bats` is installed](https://bats-core.readthedocs.io/en/stable/installation.html):
+
+- Debian / Ubuntu: `sudo apt install bats`
+- macOS: `brew install bats-core`
+- Nix: `nix profile install nixpkgs#bats`
+- npm: `npm install -g bats`
+
+To run all tests:
+```
+bats tests
+```
+
+To run a single test (for example `check-memory-synthesis`):
+```
+bats tests/check-memory-synthesis.bats
+```
+
+The remainder of this document discusses writing and maintaining tests.
+
+## Testing the hook scripts
+
+Shannon ships several hook scripts in `hooks/`:
 
 - `check-memory-synthesis.sh` — `PreToolUse` hook that fires on `Write|Edit` and injects a synthesis-check reminder when the target path looks like a memory file.
+- `check-tmp-path.sh` — `PreToolUse` hook for the `Bash` tool that reminds the agent about path conventions, in particular not to use the global `/tmp`.
 - `session-start.sh` — `SessionStart` / `PostCompact` hook that emits the memory-re-read reminder and reports the corpus size.
 - `save-session.sh` — `PreCompact` hook that snapshots the current transcript to `<project>/keep/`.
 
-These scripts need unit tests, and eventually a CI workflow that runs them on push and pull-request.
+Each script needs a unit test, and eventually a CI workflow that runs them on push and pull-request.
 
-## Testing pattern
+### Testing pattern
 
 Synthesize the stdin JSON each hook receives, pipe it to the script, and assert on three things:
 
@@ -18,7 +40,7 @@ Synthesize the stdin JSON each hook receives, pipe it to the script, and assert 
 
 This pattern follows the `/update-config` skill's "Constructing a Hook (with verification)" workflow.
 
-## Parse-check every script first
+### Parse-check every script first
 
 Before any behavioural test, the bats suite should parse-check each script — `bash -n <script>` for shell scripts, `python3 -m py_compile <script>` for the Python helper. A regression that breaks parsing is the most disruptive failure mode for a hook script: it surfaces as the hook erroring on every tool invocation until fixed, often with confusing error messages that point at a token deep inside an `additionalContext` JSON literal rather than at the real cause. `bash -n` runs the syntax check without execution; it is fast and catches the whole class — apostrophes that close a single-quoted shell argument (see `feedback_shell_quoting_review.md`), unclosed strings, unmatched braces or parens, malformed heredocs, trailing-backslash continuation errors.
 
@@ -33,13 +55,13 @@ Bats sketch:
 
 Repeat for every shell script in `hooks/`; for `jsonl-to-md.py` substitute `python3 -m py_compile`. These parse-checks are the precondition that makes the behavioural assertions below meaningful — a script that fails to parse cannot be tested behaviourally at all.
 
-## `check-memory-synthesis.sh`
-
-<!-- See also: `TODO.md` "Tests" section references this table. The TODO
-     deliberately does not enumerate cases; this table is the authoritative
+<!-- See also: `TODO.md` "Tests" section references these tables. The TODO
+     deliberately does not enumerate cases; these tables are the authoritative
      source for the per-case test design. Edits to the test cases here do
      not require TODO updates unless a whole script's worth of cases is
      added or removed. -->
+
+### `check-memory-synthesis.sh`
 
 | Case | Stdin payload | Expected |
 |---|---|---|
@@ -55,9 +77,7 @@ Repeat for every shell script in `hooks/`; for `jsonl-to-md.py` substitute `pyth
 
 The malformed-input case is **load-bearing**: a subtle regression in error handling could silently start blocking memory writes, and the user would see the Write fail with no obvious cause. This test is the canary for that regression. The same property should hold for any future hook script Shannon ships.
 
-## `check-tmp-path.sh`
-
-<!-- See also: `TODO.md` "Tests" section references this table. Edits to the test cases here do not require TODO updates unless a whole script's worth of cases is added or removed. -->
+### `check-tmp-path.sh`
 
 The script inspects `.tool_input.command` for references to `/tmp/`. It emits a reminder when the command appears to be writing scratch under `/tmp/`, and exempts `/tmp/claude-*` paths (Claude Code's own scratch).
 
@@ -75,19 +95,20 @@ The script inspects `.tool_input.command` for references to `/tmp/`. It emits a 
 
 The malformed-input case is **load-bearing** here too — and arguably more so than for `check-memory-synthesis.sh`, because a blocking failure on a Bash `PreToolUse` hook would break *every* Bash command the agent runs, not just memory edits.
 
-## `session-start.sh`
+### `session-start.sh`
 
 | Case | Setup | Expected |
 |---|---|---|
 | Empty memory corpus | `HOME` points at a fixture with no `~/.claude/memory/*.md` files | reports 0 files, ~0 tokens; no yellow / red warning |
-| Yellow corpus (50k–100k tokens) | Fixture corpus sized into the yellow band | yellow warning emitted |
-| Red corpus (>100k tokens) | Fixture corpus sized into the red band | red warning emitted |
+| Green corpus (token count below the yellow threshold) | Fixture corpus sized below the yellow band for the configured `SHANNON_CONTEXT_SIZE` | no warning |
+| Yellow corpus (token count between the yellow and red thresholds) | Fixture corpus sized into the yellow band for the configured `SHANNON_CONTEXT_SIZE` | yellow warning emitted |
+| Red corpus (token count above the red threshold) | Fixture corpus sized into the red band for the configured `SHANNON_CONTEXT_SIZE` | red warning emitted |
 | With project `CLAUDE.md` | `CLAUDE_PROJECT_DIR` set to a fixture dir containing a `CLAUDE.md` | project-context line mentions the file and its token estimate |
 | Without project `CLAUDE.md` | `CLAUDE_PROJECT_DIR` set to a dir without a `CLAUDE.md` | no project-context line |
 
-**Strategy:** override `HOME` to a per-test fixture directory containing a synthesized memory corpus, and `CLAUDE_PROJECT_DIR` for the project-context cases. Sizing the corpus is done by writing fixture `.md` files whose total byte count puts the corpus into the green / yellow / red band.
+**Strategy:** override `HOME` to a per-test fixture directory containing a synthesized memory corpus, and `CLAUDE_PROJECT_DIR` for the project-context cases. Sizing the corpus is done by writing fixture `.md` files whose total byte count puts the corpus into the green / yellow / red band. Tests also set `SHANNON_CONTEXT_SIZE=1000` (default 1000000) so the threshold values shrink from 50k / 100k tokens to 50 / 100 tokens; the fixture corpus then stays byte-sized (~100 B for green, ~500 B for red) rather than ~500 KB per test, keeping the suite's disk and I/O footprint negligible without changing the ratios under test.
 
-## `save-session.sh`
+### `save-session.sh`
 
 | Case | Setup | Expected |
 |---|---|---|
@@ -99,7 +120,7 @@ The malformed-input case is **load-bearing** here too — and arguably more so t
 
 ## Framework
 
-Use **bats** ([bats-core](https://bats-core.readthedocs.io/)): the standard Bash test framework. It is installable via `apt`, `brew`, or `npm`, and there is a `bats-core/bats-action` GitHub Action for CI. Plain shell tests would work too, but bats provides setup / teardown, clearer test naming, and tap-style output that CI parsers handle well.
+Use **bats** ([bats-core](https://bats-core.readthedocs.io/)): the standard Bash test framework. It is installable via `apt`, `brew`, `nix`, or `npm`, and there is a `bats-core/bats-action` GitHub Action for CI. Plain shell tests would work too, but bats provides setup / teardown, clearer test naming, and tap-style output that CI parsers handle well.
 
 If there is a reason to avoid the dependency on bats (very small test surface, contributors expected to run tests by hand only), a plain-shell harness with a small assertion helper is an acceptable alternative.
 
@@ -109,19 +130,17 @@ If there is a reason to avoid the dependency on bats (very small test surface, c
 shannon/
 ├── tests/
 │   ├── check-memory-synthesis.bats
+│   ├── check-tmp-path.bats
 │   ├── session-start.bats
 │   ├── save-session.bats
 │   └── fixtures/
-│       ├── empty-corpus/
-│       ├── yellow-corpus/
-│       ├── red-corpus/
-│       ├── project-with-claudemd/
-│       ├── project-without-claudemd/
 │       └── valid-transcript.jsonl
 └── .github/
     └── workflows/
         └── test.yml
 ```
+
+`check-memory-synthesis.bats` and `check-tmp-path.bats` use inline payloads (no fixture files). `session-start.bats` builds its memory-corpus and project-context directories dynamically in `setup()`, scoped to `$BATS_TEST_TMPDIR` and shrunk via `SHANNON_CONTEXT_SIZE=1000`. Only `save-session.bats` needs a checked-in fixture (`valid-transcript.jsonl`) so the round-trip can be verified deterministically.
 
 ## CI
 
@@ -133,20 +152,6 @@ A GitHub Actions workflow under `.github/workflows/test.yml` should:
 4. Fail the PR / push if any test fails.
 
 Run on `push` and `pull_request`.
-
-## User-facing documentation
-
-Contributors new to bats should be able to install it and run the suite without reading the bats documentation. Shannon's `README.md` — or a separate `docs/development.md` if the README grows too long — should cover:
-
-- **Installing bats**, with one-line commands for the common platforms:
-  - Debian / Ubuntu: `sudo apt install bats`
-  - macOS: `brew install bats-core`
-  - Cross-platform via npm: `npm install -g bats`
-- **Running the test suite**: `bats tests/` from the repo root.
-- **Running a single test file**: `bats tests/check-memory-synthesis.bats`.
-- **Adding a new test**: a brief recipe with a pointer back to this document for the design conventions.
-
-The audience is an open-source contributor arriving at the repo for the first time. Assume nothing about prior familiarity with bats.
 
 ## Shannon scripts vs `~/.claude/` scripts
 
