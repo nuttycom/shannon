@@ -1,0 +1,4 @@
+{"type":"user","message":{"role":"user","content":"first valid"}}
+this line is not json at all
+{broken json without closing
+{"type":"assistant","message":{"role":"assistant","content":"second valid"}}

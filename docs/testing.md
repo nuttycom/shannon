@@ -110,13 +110,18 @@ The malformed-input case is **load-bearing** here too — and arguably more so t
 
 ### `save-session.sh`
 
-| Case | Setup | Expected |
+| Case | Fixture | Expected |
 |---|---|---|
-| Valid transcript | Fixture `.jsonl` transcript path, `CLAUDE_PROJECT_DIR` overridden | timestamped `.jsonl` and `.md` files appear in `${CLAUDE_PROJECT_DIR}/keep/` |
-| Missing argument | Invoked with no argument | exit 2, usage message on stderr |
-| Nonexistent transcript | Invoked with a path that does not exist | exit 1, error on stderr |
+| Valid transcript | `valid-transcript.jsonl` (two well-formed messages) | exit 0, timestamped `.jsonl` and `.md` files appear in `${CLAUDE_PROJECT_DIR}/keep/`; the `.jsonl` is byte-identical to the fixture and the `.md` is a rendered transcript. |
+| Missing argument | (none — script invoked with no args) | exit 2, usage message on stderr |
+| Empty argument | (none — script invoked with `""`) | exit 2, usage message on stderr |
+| Nonexistent transcript | a path that does not exist | exit 1, not-found message on stderr |
+| Partially malformed transcript | `partial-malformed-transcript.jsonl` (valid lines interleaved with non-JSON lines) | exit 0, `.md` contains the well-formed messages but not the garbage lines (per-line skip semantics in the helper). |
+| All-malformed transcript | `all-malformed-transcript.jsonl` (no parseable JSON lines) | exit 0, `.md` contains just the header and no message lines. |
+| Invalid UTF-8 inside a JSON string | `invalid-utf8-transcript.jsonl` (well-formed JSONL with raw `0xff 0xfe` bytes inside a `content` string) | exit 0, `.md` contains the rendered message with the bad bytes replaced by U+FFFD (verifying the helper opens with `errors="replace"`). |
+| Invalid UTF-8 outside any JSON string | `structure-corrupting-utf8-transcript.jsonl` (raw `0xff 0xfe` injected between JSON tokens) | exit 0, `.md` contains just the header. The replacement happens uniformly across the line; the post-replacement line is no longer valid JSON, so the per-line skip handles it as a malformed line. |
 
-**Strategy:** fixture transcript and an overridden `CLAUDE_PROJECT_DIR`. The Markdown conversion step depends on `~/.claude/jsonl-to-md.py` being available; the test should either provide a fixture script or skip the Markdown assertion if the helper is absent (and confirm the `.jsonl` copy independently).
+**Strategy:** fixture transcripts under `tests/fixtures/`, plus per-test overrides of `HOME` and `CLAUDE_PROJECT_DIR` into `$BATS_TEST_TMPDIR`. The script's hardcoded `${HOME}/.claude/jsonl-to-md.py` lookup is resolved by symlinking the shipped helper into the per-test `$HOME/.claude/` directory at `setup()`, so the test doesn't depend on whether the user has the helper installed.
 
 ## Framework
 

@@ -10,7 +10,7 @@ Tracking list for Shannon work. Entries are brief; details for any item live in 
 - [ ] Add `tests/fixtures/` (stdin payloads, fixture memory corpora at green / yellow / red sizes, sample transcript).
 - [ ] `.github/workflows/test.yml` running `bats tests/` via `bats-core/bats-action`.
 - [x] `session-start.sh` test cases. Lives at `tests/session-start.bats`; 10 tests covering all rows of the per-case table (parse-check, reminder text always emitted, empty / green / yellow / red corpus sizing, CLAUDE.md / AGENTS.md project-context presence and absence). Uses per-test HOME and CLAUDE_PROJECT_DIR overrides into `BATS_TEST_TMPDIR` plus a dynamic `size_corpus` helper rather than checked-in fixture directories. Surfaced an empty-corpus crash in the script, fixed in the preceding commit.
-- [ ] `save-session.sh` test cases.
+- [x] `save-session.sh` test cases. Lives at `tests/save-session.bats`; see `docs/testing.md` for the per-case table. Uses checked-in fixture transcripts under `tests/fixtures/` (well-formed, partially malformed, all-malformed, and two non-UTF-8 variants). Surfaced the non-UTF-8 traceback behaviour in `jsonl-to-md.py`, tolerated via the preceding commit through `errors="replace"`.
 - [x] `check-tmp-path.sh` test cases. Lives at `tests/check-tmp-path.bats`; 10 tests covering all rows of the per-case table in `docs/testing.md` (the four trigger patterns, the `/tmp/claude-*` exemption, two non-trigger / false-positive cases, missing-field and malformed-JSON canaries, plus a parse-check). Mutation-tested: changing the exemption pattern caused only the exempt-case test to fail.
 
 ## Hook scripts
